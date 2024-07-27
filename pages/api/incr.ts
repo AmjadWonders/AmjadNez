@@ -1,8 +1,11 @@
 import { Redis } from "@upstash/redis";
 import { NextRequest, NextResponse } from "next/server";
 
-const redis = Redis.fromEnv();
-export const config = {
+export const db: Redis = new Redis({
+	url: process.env.UPSTASH_REDIS_REST_URL || '',
+	token: process.env.UPSTASH_REDIS_REST_TOKEN || ''
+ });
+ export const config = {
 	runtime: "edge",
 };
 
