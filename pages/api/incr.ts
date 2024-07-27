@@ -5,46 +5,51 @@ export const db: Redis = new Redis({
    url: process.env.UPSTASH_REDIS_REST_URL || '',
    token: process.env.UPSTASH_REDIS_REST_TOKEN || ''
 });
+
 export const config = {
-	runtime: "edge",
+   runtime: "edge",
 };
 
 export default async function incr(req: NextRequest): Promise<NextResponse> {
-	if (req.method !== "POST") {
-		return new NextResponse("use POST", { status: 405 });
-	}
-	if (req.headers.get("Content-Type") !== "application/json") {
-		return new NextResponse("must be json", { status: 400 });
-	}
+   if (req.method !== "POST") {
+      return new NextResponse("use POST", { status: 405 });
+   }
+   if (req.headers.get("Content-Type") !== "application/json") {
+      return new NextResponse("must be json", { status: 400 });
+   }
 
-	const body = await req.json();
-	let slug: string | undefined = undefined;
-	if ("slug" in body) {
-		slug = body.slug;
-	}
-	if (!slug) {
-		return new NextResponse("Slug not found", { status: 400 });
-	}
-	const ip = req.ip;
-	if (ip) {
-		// Hash the IP in order to not store it directly in your db.
-		const buf = await crypto.subtle.digest(
-			"SHA-256",
-			new TextEncoder().encode(ip),
-		);
-		const hash = Array.from(new Uint8Array(buf))
-			.map((b) => b.toString(16).padStart(2, "0"))
-			.join("");
+   const body = await req.json();
+   let slug: string | undefined = undefined;
+   if ("slug" in body) {
+      slug = body.slug;
+   }
+   if (!slug) {
+      return new NextResponse("Slug not found", { status: 400 });
+   }
 
-		// deduplicate the ip for each slug
-		const isNew = await Redis.set(["deduplicate", hash, slug].join(":"), true, {
-			nx: true,
-			ex: 24 * 60 * 60,
-		});
-		if (!isNew) {
-			new NextResponse(null, { status: 202 });
-		}
-	}
-	await Redis.incr(["pageviews", "projects", slug].join(":"));
-	return new NextResponse(null, { status: 202 });
+   const ip = req.ip;
+   if (ip) {
+      // Hash the IP in order to not store it directly in your db.
+      const buf = await crypto.subtle.digest(
+         "SHA-256",
+         new TextEncoder().encode(ip),
+      );
+      const hash = Array.from(new Uint8Array(buf))
+         .map((b) => b.toString(16).padStart(2, "0"))
+         .join("");
+
+      // Deduplicate the IP for each slug
+      const isNew = await db.set(["deduplicate", hash, slug].join(":"), true, {
+         nx: true,
+         ex: 24 * 60 * 60,
+      });
+
+      if (!isNew) {
+         return new NextResponse(null, { status: 202 });
+      }
+   }
+
+   await db.incr(["pageviews", "projects", slug].join(":"));
+
+   return new NextResponse(null, { status: 202 });
 }
