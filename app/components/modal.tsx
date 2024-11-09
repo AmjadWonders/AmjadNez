@@ -7,7 +7,7 @@ type PdfModalProps = {
 };
 const PdfModal: React.FC<PdfModalProps> = ({ isModalOpen, setIsModalOpen }) => {
   const [copyState, setCopyState] = useState(false);
-  const URLLink = "https://t.ly/_2-Px";
+  const URLLink = "https://t.ly/HHfN_";
 
   // Copy the link
   const handleCopy = () => {
